@@ -60,3 +60,6 @@ fastlane/report.xml
 fastlane/Preview.html
 fastlane/screenshots/**/*.png
 fastlane/test_output
+
+# keep sqlite database local
+Where2Look/Where2Look/Resources/waxnav.db

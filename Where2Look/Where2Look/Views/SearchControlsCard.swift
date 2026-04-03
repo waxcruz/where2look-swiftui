@@ -1,0 +1,112 @@
+//
+//  SearchControlsCard.swift
+//  Where2Look
+//
+//  Created by Bill Weatherwax on 3/30/26.
+//
+
+
+import SwiftUI
+import CoreLocation
+
+struct SearchControlsCard: View {
+    let location: CLLocation
+    let locationService: LocationService
+    @ObservedObject var viewModel: NearbyFeaturesViewModel
+    @Binding var isExpanded: Bool
+    let onSearch: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isExpanded.toggle()
+                }
+            } label: {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(positionSummary)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        Text(headingSummary)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .buttonStyle(.plain)
+
+            if isExpanded {
+                VStack(spacing: 10) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text("Distance")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                            Spacer()
+                            Text("\(Int(viewModel.distanceLimitMiles)) mi")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        Slider(value: $viewModel.distanceLimitMiles, in: 1...50, step: 1)
+                    }
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text("Min Elevation")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                            Spacer()
+                            Text(formattedAltitude(Int(viewModel.minElevation)))
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        Slider(value: $viewModel.minElevation, in: 0...12000, step: 100)
+                    }
+
+                    HStack {
+                        Spacer()
+
+                        Button("Search Nearby") {
+                            onSearch()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                    }
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .padding()
+        .background(Color(.secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+
+    private var positionSummary: String {
+        let lat = String(format: "%.3f", location.coordinate.latitude)
+        let lon = String(format: "%.3f", location.coordinate.longitude)
+        let alt = formattedAltitude(Int(location.altitude * 3.28084))
+
+        return "Lat \(lat)  •  Lon \(lon)  •  Alt \(alt) ft"
+    }
+
+    private var headingSummary: String {
+        if let heading = locationService.currentHeading?.trueHeading, heading >= 0 {
+            return "Heading \(Int(heading))°"
+        } else {
+            return "Heading unavailable"
+        }
+    }
+
+    private func formattedAltitude(_ value: Int) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        return formatter.string(from: NSNumber(value: value)) ?? "\(value)"
+    }
+}
