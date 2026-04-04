@@ -5,7 +5,6 @@
 //  Created by Bill Weatherwax on 3/30/26.
 //
 
-
 import Foundation
 import CoreLocation
 import Combine
@@ -17,12 +16,16 @@ final class LocationService: NSObject, ObservableObject {
     @Published var currentHeading: CLHeading?
     @Published var errorMessage: String = ""
 
+    @Published var lastLocationTimestamp: Date?
+    @Published var lastHeadingTimestamp: Date?
+
     private let manager = CLLocationManager()
+    private var pendingLocationRequest: (() -> Void)?
 
     override init() {
         super.init()
         manager.delegate = self
-        manager.desiredAccuracy = kCLLocationAccuracyBest
+        manager.desiredAccuracy = kCLLocationAccuracyNearestTenMeters
         manager.headingFilter = 1
     }
 
@@ -32,10 +35,13 @@ final class LocationService: NSObject, ObservableObject {
         switch manager.authorizationStatus {
         case .notDetermined:
             manager.requestWhenInUseAuthorization()
+
         case .authorizedWhenInUse, .authorizedAlways:
             start()
+
         case .restricted, .denied:
             errorMessage = "Location access is denied. Please enable it in Settings."
+
         @unknown default:
             break
         }
@@ -48,11 +54,15 @@ final class LocationService: NSObject, ObservableObject {
 
         requestSingleLocation()
     }
-    
+
     func requestSingleLocation() {
         manager.requestLocation()
     }
-    
+
+    func requestLocationThen(_ action: @escaping () -> Void) {
+        pendingLocationRequest = action
+        manager.requestLocation()
+    }
 
     func stop() {
         manager.stopUpdatingLocation()
@@ -68,10 +78,13 @@ extension LocationService: CLLocationManagerDelegate {
             switch manager.authorizationStatus {
             case .authorizedWhenInUse, .authorizedAlways:
                 self.start()
+
             case .restricted, .denied:
                 self.errorMessage = "Location access is denied. Please enable it in Settings."
+
             case .notDetermined:
                 break
+
             @unknown default:
                 break
             }
@@ -83,18 +96,26 @@ extension LocationService: CLLocationManagerDelegate {
 
         Task { @MainActor in
             self.currentLocation = location
+            self.lastLocationTimestamp = Date()
+
+            if let action = self.pendingLocationRequest {
+                self.pendingLocationRequest = nil
+                action()
+            }
         }
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateHeading newHeading: CLHeading) {
         Task { @MainActor in
             self.currentHeading = newHeading
+            self.lastHeadingTimestamp = Date()
         }
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         Task { @MainActor in
             self.errorMessage = error.localizedDescription
+            self.pendingLocationRequest = nil
         }
     }
 }
