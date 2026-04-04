@@ -1,11 +1,3 @@
-//
-//  SearchControlsCard.swift
-//  Where2Look
-//
-//  Created by Bill Weatherwax on 3/30/26.
-//
-
-
 import SwiftUI
 import CoreLocation
 
@@ -17,30 +9,34 @@ struct SearchControlsCard: View {
     let onSearch: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Button {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    isExpanded.toggle()
-                }
-            } label: {
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(positionSummary)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 12) {
 
-                        Text(headingSummary)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+            HStack {
+                Text("Nearby Search")
+                    .font(.headline)
+
+                Spacer()
+
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isExpanded.toggle()
                     }
-
-                    Spacer()
-
+                } label: {
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                         .foregroundStyle(.secondary)
                 }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(positionSummary)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Text(headingSummary)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
 
             if isExpanded {
                 VStack(spacing: 10) {
@@ -54,6 +50,7 @@ struct SearchControlsCard: View {
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
+
                         Slider(value: $viewModel.distanceLimitMiles, in: 1...50, step: 1)
                     }
 
@@ -63,10 +60,11 @@ struct SearchControlsCard: View {
                                 .font(.subheadline)
                                 .fontWeight(.medium)
                             Spacer()
-                            Text(formattedAltitude(Int(viewModel.minElevation)))
+                            Text(formattedAltitude(Int(viewModel.minElevation)) + " ft")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
+
                         Slider(value: $viewModel.minElevation, in: 0...12000, step: 100)
                     }
 
