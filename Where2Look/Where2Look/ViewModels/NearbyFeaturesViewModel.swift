@@ -105,7 +105,7 @@ final class NearbyFeaturesViewModel: ObservableObject {
                 selectedFeatureClasses: [],
                 headingDegrees: nil,
                 headingToleranceDegrees: headingToleranceDegrees,
-                resultLimit: 100
+                resultLimit: 5000
             )
 
             features = try GISDatabaseService.shared.nearbyFeatures(request: request)

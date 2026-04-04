@@ -1,13 +1,6 @@
-//
-//  GISDatabaseService.swift
-//  Where2Look
-//
-//  Created by Bill Weatherwax on 3/30/26.
-//
-
-
 import Foundation
 import SQLite3
+
 private let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
 
 final class GISDatabaseService {
@@ -61,7 +54,6 @@ final class GISDatabaseService {
         FROM locations
         WHERE latitude BETWEEN ? AND ?
           AND longitude BETWEEN ? AND ?
-        LIMIT ?
         """
 
         var statement: OpaquePointer?
@@ -74,7 +66,6 @@ final class GISDatabaseService {
         sqlite3_bind_double(statement, 2, box.maxLat)
         sqlite3_bind_double(statement, 3, box.minLon)
         sqlite3_bind_double(statement, 4, box.maxLon)
-        sqlite3_bind_int(statement, 5, Int32(request.resultLimit))
 
         var results: [GISFeature] = []
 
@@ -99,17 +90,14 @@ final class GISDatabaseService {
                 toLongitude: longitude
             )
 
-            // distance safety filter
             guard distanceMiles <= request.distanceLimitMiles else {
                 continue
             }
 
-            // elevation filter
             guard elevation >= request.minElevation else {
                 continue
             }
 
-            // feature class filter
             if !request.selectedFeatureClasses.isEmpty &&
                 !request.selectedFeatureClasses.contains(featureClass) {
                 continue
@@ -122,13 +110,12 @@ final class GISDatabaseService {
                 toLongitude: longitude
             )
 
-            // optional heading filter
             if let heading = request.headingDegrees {
-                if !GeoMath.isWithinHeadingTolerance(
+                guard GeoMath.isWithinHeadingTolerance(
                     headingDegrees: heading,
                     targetBearingDegrees: bearingDegrees,
                     toleranceDegrees: request.headingToleranceDegrees
-                ) {
+                ) else {
                     continue
                 }
             }
@@ -146,6 +133,10 @@ final class GISDatabaseService {
             )
         }
 
-        return results.sorted { $0.distanceMiles < $1.distanceMiles }
+        return Array(
+            results
+                .sorted { $0.distanceMiles < $1.distanceMiles }
+                .prefix(request.resultLimit)
+        )
     }
 }
