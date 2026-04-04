@@ -16,11 +16,13 @@ enum SortOrder: String, CaseIterable {
 final class NearbyFeaturesViewModel: ObservableObject {
     @Published var features: [GISFeature] = []
     @Published var errorMessage: String = ""
+    @Published var hasSearched = false
+    @Published var isLoading: Bool = false
+
 
     @AppStorage("distanceLimitMiles") var distanceLimitMiles: Double = 25
     @AppStorage("minElevation") var minElevation: Double = 0
 
-    @AppStorage("useHeadingFilter") var useHeadingFilter: Bool = false
     @AppStorage("isDirectionFilterEnabled") var isDirectionFilterEnabled: Bool = false
     @AppStorage("headingToleranceDegrees") var headingToleranceDegrees: Double = 10
 
@@ -65,24 +67,21 @@ final class NearbyFeaturesViewModel: ObservableObject {
             objectWillChange.send()
         }
     }
-    
+
     var hasActiveFilters: Bool {
-        return distanceLimitMiles != 25
+        distanceLimitMiles != 25
             || minElevation != 0
-            || useHeadingFilter
             || isDirectionFilterEnabled
             || headingToleranceDegrees != 10
             || sortOption != .distance
             || sortOrder != .ascending
             || !selectedFeatureClasses.isEmpty
     }
-    
-    
+
     func resetFilters() {
         distanceLimitMiles = 25
         minElevation = 0
 
-        useHeadingFilter = false
         isDirectionFilterEnabled = false
         headingToleranceDegrees = 10
 
@@ -93,6 +92,8 @@ final class NearbyFeaturesViewModel: ObservableObject {
     }
 
     func loadNearbyFeatures(latitude: Double, longitude: Double, headingDegrees: Double?) {
+        isLoading = true
+
         do {
             currentHeadingDegrees = headingDegrees
 
@@ -110,10 +111,15 @@ final class NearbyFeaturesViewModel: ObservableObject {
 
             features = try GISDatabaseService.shared.nearbyFeatures(request: request)
             errorMessage = ""
+            hasSearched = true
+
         } catch {
             features = []
             errorMessage = error.localizedDescription
+            hasSearched = true
         }
+
+        isLoading = false
     }
 
     var sortedFeatures: [GISFeature] {
@@ -136,13 +142,6 @@ final class NearbyFeaturesViewModel: ObservableObject {
                     targetBearingDegrees: feature.bearingDegrees,
                     toleranceDegrees: headingToleranceDegrees
                 )
-            }
-        }
-
-        // Heading ranking mode
-        if useHeadingFilter, let heading = currentHeadingDegrees {
-            return base.sorted {
-                score(for: $0, heading: heading) > score(for: $1, heading: heading)
             }
         }
 
@@ -175,17 +174,10 @@ final class NearbyFeaturesViewModel: ObservableObject {
         }
 
         selectedFeatureClasses = current
-        objectWillChange.send()
     }
 
     func displayName(for featureClass: String) -> String {
         FeatureClassMapper.displayName(for: featureClass)
-    }
-
-    private func score(for feature: GISFeature, heading: Double) -> Double {
-        let bearingPenalty = headingDifference(feature.bearingDegrees, heading) * 2.5
-        let distancePenalty = feature.distanceMiles * 4.0
-        return 1000 - bearingPenalty - distancePenalty
     }
 
     private func headingDifference(_ a: Double, _ b: Double) -> Double {
