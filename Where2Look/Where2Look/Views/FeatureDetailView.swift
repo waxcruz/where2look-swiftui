@@ -1,52 +1,47 @@
-//
-//  FeatureDetailView.swift
-//  Where2Look
-//
-//  Created by Bill Weatherwax on 3/30/26.
-//
-
-
-//
-//  FeatureDetailView.swift
-//  Where2Look
-//
-//  Created by Bill Weatherwax on 3/30/26.
-//
-
 import SwiftUI
 
 struct FeatureDetailView: View {
     let feature: GISFeature
+    @ObservedObject var navigationService: NavigationService
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 20) {
+
             Text(feature.location)
                 .font(.largeTitle)
-                .fontWeight(.bold)
+                .fontWeight(.semibold)
 
             VStack(alignment: .leading, spacing: 10) {
-                detailRow("Type", feature.featureClassDisplayName)
-                detailRow("Distance", feature.formattedDistanceLong)
-                detailRow("Bearing", feature.formattedBearing)
-                detailRow("Elevation", feature.formattedElevation)
-                detailRow("Latitude", feature.formattedLatitude)
-                detailRow("Longitude", feature.formattedLongitude)
+                Text("Type: \(feature.featureClassDisplayName)")
+                Text("Distance: \(feature.formattedDistance)")
+                Text("Bearing: \(feature.formattedBearing)")
+                Text("Elevation: \(feature.formattedElevation)")
+            }
+            .font(.body)
+
+            Divider()
+
+            if navigationService.lockedFeature?.id == feature.id {
+                Button("Unlock Target") {
+                    navigationService.unlock()
+                }
+                .buttonStyle(.borderedProminent)
+
+            } else {
+                Button("Lock & Navigate") {
+                    navigationService.selectedFeature = feature
+                    navigationService.lockSelected()
+                }
+                .buttonStyle(.borderedProminent)
             }
 
             Spacer()
         }
         .padding()
-        .navigationTitle("Details")
+        .navigationTitle("Feature")
         .navigationBarTitleDisplayMode(.inline)
-    }
-
-    private func detailRow(_ label: String, _ value: String) -> some View {
-        HStack {
-            Text(label)
-                .fontWeight(.semibold)
-            Spacer()
-            Text(value)
-                .foregroundStyle(.secondary)
+        .onAppear {
+            navigationService.selectedFeature = feature
         }
     }
 }
