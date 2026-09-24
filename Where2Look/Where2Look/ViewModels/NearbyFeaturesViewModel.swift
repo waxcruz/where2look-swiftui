@@ -5,6 +5,7 @@ import SwiftUI
 enum SortOption: String, CaseIterable {
     case distance = "Distance"
     case elevation = "Elevation"
+    case heading = "Heading"
 }
 
 enum SortOrder: String, CaseIterable {
@@ -103,10 +104,11 @@ final class NearbyFeaturesViewModel: ObservableObject {
                 minElevation: minElevation,
                 currentLatitude: latitude,
                 currentLongitude: longitude,
-                selectedFeatureClasses: [],
-                headingDegrees: nil,
+                selectedFeatureClasses: selectedFeatureClasses,
+                headingDegrees: isDirectionFilterEnabled ? headingDegrees : nil,
                 headingToleranceDegrees: headingToleranceDegrees,
-                resultLimit: 5000
+                resultLimit: 5000,
+                useHeadingFilter: isDirectionFilterEnabled
             )
 
             features = try GISDatabaseService.shared.nearbyFeatures(request: request)
@@ -154,6 +156,9 @@ final class NearbyFeaturesViewModel: ObservableObject {
 
         case .elevation:
             sorted = base.sorted { $0.elevation < $1.elevation }
+
+        case .heading:
+            sorted = base.sorted { $0.bearingDegrees < $1.bearingDegrees }
         }
 
         return sortOrder == .ascending ? sorted : Array(sorted.reversed())

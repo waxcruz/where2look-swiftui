@@ -32,9 +32,9 @@ final class NavigationService: ObservableObject {
     // MARK: - Heading Handling
     
     private func handleHeadingUpdate(_ rawHeading: Double) {
-        print("Heading:", rawHeading)
-        print("selected:", selectedFeature?.location ?? "nil",
-              "locked:", lockedFeature?.location ?? "nil")
+//        print("Heading:", rawHeading)
+//        print("selected:", selectedFeature?.location ?? "nil",
+//              "locked:", lockedFeature?.location ?? "nil")
         
         guard rawHeading >= 0 else {
             print("No target or heading")

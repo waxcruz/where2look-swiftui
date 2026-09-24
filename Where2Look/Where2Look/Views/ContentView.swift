@@ -9,15 +9,14 @@ struct ContentView: View {
     @State private var isSearchExpanded = false
     @State private var searchText = ""
 
-    // ✅ Navigation source of truth
     @State private var selectedFeatureForNav: GISFeature?
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
+
                 TopBarView()
 
-                // 🔒 Locked target indicator only
                 if let locked = navigationService.lockedFeature {
                     Text("Locked: \(locked.location)")
                         .font(.headline)
@@ -26,31 +25,36 @@ struct ContentView: View {
                 }
 
                 if let location = locationService.location {
-                    SearchControlsCard(
-                        location: location,
-                        locationService: locationService,
-                        viewModel: viewModel,
-                        isExpanded: $isSearchExpanded,
-                        onSearch: {
-                            reload(for: location)
+
+                    // 🔼 FILTER AREA (scrolls)
+                    ScrollView {
+                        VStack(spacing: 0) {
+                            SearchControlsCard(
+                                location: location,
+                                locationService: locationService,
+                                viewModel: viewModel,
+                                isExpanded: $isSearchExpanded,
+                                onSearch: {
+                                    reload(for: location)
+                                }
+                            )
+                            .padding(.horizontal)
+                            .padding(.top, 8)
                         }
-                    )
-                    .padding(.horizontal)
-                    .padding(.top, 8)
+                    }
+                    .frame(maxHeight: isSearchExpanded ? 420 : 180) // 👈 key
 
                     Divider()
-                        .padding(.top, 8)
 
+                    // 🔽 RESULTS AREA (independent scroll + sticky header)
                     ResultsListView(
                         viewModel: viewModel,
                         navigationService: navigationService,
                         searchText: searchText,
                         onSelect: { feature in
-                            print("🔥 CONTENT VIEW SELECTED:", feature.location)
                             selectedFeatureForNav = feature
                         }
                     )
-                    .searchable(text: $searchText, prompt: "Search features")
 
                 } else {
                     Spacer()
@@ -63,7 +67,6 @@ struct ContentView: View {
                 navigationService.start(locationService: locationService)
             }
 
-            // ✅ Navigation happens HERE only
             .navigationDestination(item: $selectedFeatureForNav) { feature in
                 FeatureDetailView(
                     feature: feature,
@@ -93,8 +96,4 @@ struct ContentView: View {
             headingDegrees: usableHeading
         )
     }
-}
-
-#Preview {
-    ContentView()
 }

@@ -7,74 +7,142 @@ struct ResultsListView: View {
     let searchText: String
     let onSelect: (GISFeature) -> Void
 
+    @State private var internalSearchText = ""
+    @FocusState private var isSearchFocused: Bool
+
     private var filteredFeatures: [GISFeature] {
-        if searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        let text = internalSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if text.isEmpty {
             return viewModel.sortedFeatures
         }
 
-        return viewModel.sortedFeatures.filter {
-            $0.location.localizedCaseInsensitiveContains(searchText)
+        return viewModel.sortedFeatures.filter { feature in
+            matches(feature, searchText: text)
         }
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+        VStack(spacing: 0) {
+            searchBar
 
-                HStack {
-                    Text("Results")
-                        .font(.headline)
+            ScrollView {
+                LazyVStack(pinnedViews: [.sectionHeaders]) {
+                    Section(header: resultsHeader) {
+                        if filteredFeatures.isEmpty {
+                            Text("No nearby features matched your search.")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .padding()
+                        } else {
+                            ForEach(filteredFeatures) { feature in
+                                let isSelected = navigationService.selectedFeature?.id == feature.id
+                                let isLocked = navigationService.lockedFeature?.id == feature.id
 
-                    Spacer()
+                                Button {
+                                    isSearchFocused = false
+                                    onSelect(feature)
+                                } label: {
+                                    HStack(spacing: 12) {
+                                        FeatureRowView(
+                                            feature: feature,
+                                            isLikelyMatch: viewModel.isLikelyMatch(feature)
+                                        )
 
-                    Text("\(filteredFeatures.count)")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
+                                        Spacer(minLength: 0)
 
-                if filteredFeatures.isEmpty {
-                    Text("No nearby features matched your search.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .padding(.top, 8)
-
-                } else {
-                    LazyVStack(spacing: 10) {
-                        ForEach(filteredFeatures) { feature in
-                            let isSelected = navigationService.selectedFeature?.id == feature.id
-                            let isLocked = navigationService.lockedFeature?.id == feature.id
-
-                            Button {
-                                print("TAPPED:", feature.location)
-                                onSelect(feature)
-                            } label: {
-                                HStack(spacing: 12) {
-                                    FeatureRowView(
-                                        feature: feature,
-                                        isLikelyMatch: viewModel.isLikelyMatch(feature)
-                                    )
-
-                                    Spacer(minLength: 0)
-
-                                    if isLocked {
-                                        Image(systemName: "lock.fill")
-                                            .foregroundStyle(.green)
-                                    } else if isSelected {
-                                        Image(systemName: "checkmark.circle.fill")
-                                            .foregroundStyle(.blue)
+                                        if isLocked {
+                                            Image(systemName: "lock.fill")
+                                                .foregroundStyle(.green)
+                                        } else if isSelected {
+                                            Image(systemName: "checkmark.circle.fill")
+                                                .foregroundStyle(.blue)
+                                        }
                                     }
+                                    .padding(8)
+                                    .background(
+                                        rowBackground(
+                                            isSelected: isSelected,
+                                            isLocked: isLocked
+                                        )
+                                    )
+                                    .clipShape(RoundedRectangle(cornerRadius: 8))
                                 }
-                                .padding(8)
-                                .background(rowBackground(isSelected: isSelected, isLocked: isLocked))
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                                .buttonStyle(.plain)
+                                .padding(.horizontal)
                             }
-                            .buttonStyle(.plain)
                         }
                     }
                 }
+                .padding(.top, 8)
             }
-            .padding()
+            .scrollDismissesKeyboard(.immediately)
         }
+    }
+
+    private var searchBar: some View {
+        VStack(spacing: 8) {
+            HStack {
+                Text("Results")
+                    .font(.headline)
+
+                Spacer()
+
+                Text("\(filteredFeatures.count)")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            HStack(spacing: 8) {
+                TextField("Search feature results", text: $internalSearchText)
+                    .textFieldStyle(.plain)
+                    .focused($isSearchFocused)
+                    .submitLabel(.done)
+                    .autocorrectionDisabled()
+                    .textInputAutocapitalization(.never)
+                    .onSubmit {
+                        isSearchFocused = false
+                    }
+
+                if !internalSearchText.isEmpty {
+                    Button {
+                        internalSearchText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                if isSearchFocused {
+                    Button("Done") {
+                        isSearchFocused = false
+                    }
+                    .font(.subheadline)
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(10)
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(Color(.secondarySystemBackground))
+            )
+        }
+        .padding()
+        .background(.ultraThinMaterial)
+    }
+
+    private var resultsHeader: some View {
+        Color.clear.frame(height: 0)
+    }
+
+    private func matches(_ feature: GISFeature, searchText: String) -> Bool {
+        feature.location.localizedCaseInsensitiveContains(searchText) ||
+        feature.featureClass.localizedCaseInsensitiveContains(searchText) ||
+        feature.featureClassDisplayName.localizedCaseInsensitiveContains(searchText) ||
+        feature.formattedDistance.localizedCaseInsensitiveContains(searchText) ||
+        feature.formattedBearing.localizedCaseInsensitiveContains(searchText) ||
+        feature.formattedElevation.localizedCaseInsensitiveContains(searchText)
     }
 
     private func rowBackground(isSelected: Bool, isLocked: Bool) -> Color {
